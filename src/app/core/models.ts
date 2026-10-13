@@ -26,6 +26,14 @@ export interface Order {
   lat: number | string;
   lng: number | string;
   distance_km?: number;
+  /** เวลาที่ส่งจริง (ว่างถ้ายังไม่ส่ง) */
+  delivered_at?: string | null;
+  /** ไรเดอร์ที่รับงาน (ว่างถ้ายังเป็น pending) */
+  route_id?: number | null;
+  rider_id?: number | null;
+  rider_name?: string | null;
+  /** เลขใบงานปัจจุบันของไรเดอร์ (ว่างถ้าถูกแทนที่ด้วยเลขใหม่แล้ว) */
+  rider_access_code?: string | null;
 }
 
 /** จุดส่งที่ได้จากการคำนวณ (POST /routes/calculate) */
@@ -75,6 +83,7 @@ export interface PlanSummary {
   profit_before_other_expenses: number;
   within_one_hour?: boolean;
   latest_arrival_minutes?: number;
+  late_riders?: number;
 }
 
 export interface PlanResult {
@@ -89,6 +98,8 @@ export interface PlanResult {
   };
   variant?: number;
   tries?: number;
+  /** road = ระยะทางตามถนนจริง, estimate = ประมาณจากเส้นตรง (เซิร์ฟเวอร์ขอข้อมูลถนนไม่ได้ชั่วคราว) */
+  distance_source?: 'road' | 'estimate';
   routes: PlanRoute[];
   unassigned: { order_id: number; reason: string }[];
   summary: PlanSummary;
@@ -105,6 +116,7 @@ export interface SavedRoute {
   orders_count: number;
   order_ids: string | null;
   rider_access_code?: string;
+  delivered_count?: number | string;
 }
 
 export interface RouteStop {
@@ -116,6 +128,16 @@ export interface RouteStop {
   last_name: string;
   phone: string;
   address: string;
+  lat: number | string;
+  lng: number | string;
+  delivered_at?: string | null;
+  /** ส่งทันก่อน 12:30 หรือไม่ (ว่างถ้ายังไม่ส่ง) */
+  on_time?: boolean | null;
+}
+
+export interface Shop {
+  id?: number;
+  name: string;
   lat: number | string;
   lng: number | string;
 }

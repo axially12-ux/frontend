@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, afterNextRender, computed, effect, input, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, OnDestroy, afterNextRender, computed, effect, input, output, signal, viewChild } from '@angular/core';
 import type * as Leaflet from 'leaflet';
 
 export interface MapStop {
@@ -18,6 +18,11 @@ export interface MapPin {
   lng: number;
   title: string;
   detail?: string;
+}
+
+export interface MapPoint {
+  lat: number;
+  lng: number;
 }
 
 /** สีเส้นทางไรเดอร์: คนที่ 1 แดง, คนที่ 2 เขียว, คนที่ 3 น้ำเงิน ตามที่เจ้าของร้านกำหนด */
@@ -65,6 +70,7 @@ const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt
  * แผนที่จริง (OpenStreetMap + Leaflet)
  * - ใส่ [routes] เพื่อวาดเส้นทางไรเดอร์แต่ละคนคนละสี (เริ่มจากร้าน)
  * - ใส่ [pins] เพื่อปักหมุดบ้านลูกค้า
+ * - ใส่ [pickable]="true" เพื่อให้คลิกบนแผนที่เลือกตำแหน่งได้ (รับค่าผ่าน (pick), แสดงหมุดที่เลือกด้วย [picked], ลากหมุดปรับตำแหน่งได้)
  * Leaflet แตะ window จึงโหลดเฉพาะฝั่งเบราว์เซอร์เท่านั้น (รองรับ SSR)
  */
 @Component({
@@ -105,6 +111,10 @@ export class RouteMap implements OnDestroy {
   routes = input<MapRoute[]>([]);
   pins = input<MapPin[]>([]);
   height = input('28rem');
+  /** โหมดเลือกตำแหน่ง: คลิกแผนที่หรือลากหมุดเพื่อเลือกพิกัด */
+  pickable = input(false);
+  picked = input<MapPoint | null>(null);
+  pick = output<MapPoint>();
 
   private host = viewChild.required<ElementRef<HTMLDivElement>>('host');
   protected ready = signal(false);
@@ -118,6 +128,8 @@ export class RouteMap implements OnDestroy {
   private L?: typeof Leaflet;
   private map?: Leaflet.Map;
   private layer?: Leaflet.LayerGroup;
+  private pickLayer?: Leaflet.LayerGroup;
+  private hadPick = false;
 
   protected legend = computed(() =>
     this.routes().map((r, i) => ({
@@ -137,8 +149,23 @@ export class RouteMap implements OnDestroy {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(this.map);
       this.layer = this.L.layerGroup().addTo(this.map);
+      this.pickLayer = this.L.layerGroup().addTo(this.map);
       this.map.on('zoomend', () => this.relayout());
+      this.map.on('click', (e: Leaflet.LeafletMouseEvent) => {
+        if (this.pickable()) this.pick.emit(this.round(e.latlng.lat, e.latlng.lng));
+      });
+      if (this.pickable()) this.host().nativeElement.style.cursor = 'crosshair';
+      // แผนที่ที่เปิดในกล่องโต้ตอบ (modal) ต้องคำนวณขนาดใหม่หลังกล่องแสดงเสร็จ
+      setTimeout(() => this.map?.invalidateSize(), 250);
       this.ready.set(true);
+    });
+
+    // วาดหมุดที่เลือก (โหมด pickable)
+    effect(() => {
+      const p = this.picked();
+      const ready = this.ready();
+      if (!ready || !this.L || !this.map || !this.pickLayer) return;
+      this.drawPick(p);
     });
 
     // วาดใหม่ทุกครั้งที่ข้อมูลเปลี่ยน
@@ -154,6 +181,37 @@ export class RouteMap implements OnDestroy {
 
   ngOnDestroy() {
     this.map?.remove();
+  }
+
+  private round(lat: number, lng: number): MapPoint {
+    return { lat: Number(lat.toFixed(6)), lng: Number(lng.toFixed(6)) };
+  }
+
+  private drawPick(p: MapPoint | null) {
+    const L = this.L!;
+    const map = this.map!;
+    this.pickLayer!.clearLayers();
+    if (!p || !Number.isFinite(p.lat) || !Number.isFinite(p.lng)) {
+      this.hadPick = false;
+      return;
+    }
+    const marker = L.marker([p.lat, p.lng], {
+      draggable: this.pickable(),
+      icon: L.divIcon({
+        className: '',
+        iconSize: [26, 34],
+        iconAnchor: [13, 34],
+        html: `<svg width="26" height="34" viewBox="0 0 26 34"><path d="M13 1C6.4 1 1 6.2 1 12.7 1 21.5 13 33 13 33s12-11.5 12-20.3C25 6.2 19.6 1 13 1z" fill="#dc2626" stroke="#fff" stroke-width="2"/><circle cx="13" cy="12.5" r="4.5" fill="#fff"/></svg>`,
+      }),
+    }).addTo(this.pickLayer!);
+    marker.on('dragend', () => {
+      const ll = marker.getLatLng();
+      this.pick.emit(this.round(ll.lat, ll.lng));
+    });
+    // เลือกครั้งแรก (หรือพิมพ์พิกัดเอง) ให้แผนที่เลื่อนมาที่หมุด
+    if (!this.hadPick) map.setView([p.lat, p.lng], Math.max(map.getZoom(), 16));
+    else if (!map.getBounds().contains([p.lat, p.lng])) map.panTo([p.lat, p.lng]);
+    this.hadPick = true;
   }
 
   private draw(shop: { lat: number; lng: number } | null, routes: MapRoute[], pins: MapPin[]) {

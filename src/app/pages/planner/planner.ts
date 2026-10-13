@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService, errorText } from '../../core/api.service';
@@ -93,7 +94,7 @@ interface Option {
             <p class="text-xs text-slate-500">เวลาที่ใช้ (ไรเดอร์ที่ช้าสุด)</p>
             <p class="mt-1 text-2xl font-bold" [class]="p.summary.within_one_hour === false ? 'text-red-600' : ''">{{ maxMinutes(p) }} <span class="text-sm font-medium text-slate-500">นาที</span></p>
             <p class="text-xs" [class]="p.summary.within_one_hour === false ? 'font-semibold text-red-600' : 'text-emerald-600'">
-              {{ p.summary.within_one_hour === false ? '⚠ เกิน 12:30 น. เสี่ยงโดนปรับ' : '✓ ทันก่อน 12:30 น.' }}
+              {{ p.summary.within_one_hour === false ? '⚠ เกิน 12:30 น. ' + (p.summary.late_riders ? '(' + p.summary.late_riders + ' คน) ' : '') + 'เสี่ยงโดนปรับ' : '✓ ทันก่อน 12:30 น.' }}
             </p>
           </div>
           <div class="card p-4">
@@ -108,6 +109,13 @@ interface Option {
           </div>
         </div>
 
+        @if (p.distance_source === 'estimate') {
+          <div class="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200">
+            <p class="font-semibold">ตัวเลขนี้เป็นการประมาณ</p>
+            <p class="mt-0.5">เซิร์ฟเวอร์ขอข้อมูลถนนจริงไม่ได้ชั่วคราว จึงประมาณระยะทางจากเส้นตรง × 1.3 ลองกด "คำนวณใหม่" อีกครั้งในอีกสักครู่เพื่อให้ได้ระยะตามถนนจริง</p>
+          </div>
+        }
+
         @if (p.unassigned.length) {
           <div class="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200">
             <p class="font-semibold">จัดไม่ได้ {{ p.unassigned.length }} ออเดอร์ (#{{ unassignedIds() }})</p>
@@ -119,7 +127,7 @@ interface Option {
         <div class="card mt-4 p-4">
           <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 class="font-semibold">แผนที่เส้นทางไรเดอร์</h2>
-            <p class="text-xs text-slate-500">ตัวเลขคือลำดับส่ง · เส้นเริ่มจากร้าน · แตะหมุดเพื่อดูชื่อลูกค้า · ระยะทางเป็นเส้นตรง ไม่ใช่ระยะถนนจริง</p>
+            <p class="text-xs text-slate-500">ตัวเลขคือลำดับส่ง · เส้นเริ่มจากร้าน · แตะหมุดเพื่อดูชื่อลูกค้า · {{ p.distance_source === 'estimate' ? 'ระยะทางที่คำนวณเป็นค่าประมาณ (เส้นตรง × 1.3)' : 'ระยะทางที่คำนวณเป็นระยะตามถนนจริง' }}</p>
           </div>
           <app-route-map [shop]="shop()" [routes]="mapRoutes()" height="min(70vh, 36rem)" />
         </div>
@@ -264,21 +272,27 @@ export class Planner {
     });
   }
 
-  save() {
+  /** force = ยืนยันแล้วว่าจะบันทึกทั้งที่มีไรเดอร์ถึงเกิน 12:30 */
+  save(force = false) {
     const p = this.plan();
     if (!p?.routes.length) return;
-    if (this.loss() && !confirm('แผนนี้ขาดทุน ต้องการมอบหมายงานตามแผนนี้จริงหรือไม่?')) return;
+    if (!force && this.loss() && !confirm('แผนนี้ขาดทุน ต้องการมอบหมายงานตามแผนนี้จริงหรือไม่?')) return;
     const assignments = p.routes.map(r => ({ rider_id: r.rider_id, rider_name: r.rider_name, order_ids: r.stops.map(s => s.order_id) }));
     this.saving.set(true);
-    this.api.saveRoutes(assignments).subscribe({
+    this.api.saveRoutes(assignments, force).subscribe({
       next: () => {
         this.toast.ok('บันทึกเส้นทางและมอบหมายงานสำเร็จ');
         this.saving.set(false);
         this.router.navigateByUrl('/routes');
       },
       error: e => {
-        this.toast.error(errorText(e));
         this.saving.set(false);
+        // เซิร์ฟเวอร์ไม่บันทึกเพราะมีไรเดอร์ที่คาดว่าถึงเกิน 12:30 -> ให้ผู้ใช้ตัดสินใจ
+        if (e instanceof HttpErrorResponse && e.status === 409 && e.error?.code === 'LATE') {
+          if (confirm(`${e.error.error}\n\nต้องการบันทึกทั้งที่ส่งไม่ทันหรือไม่?\n(กดยกเลิกแล้วลองคำนวณใหม่เพื่อหาแผนที่ทันเวลา)`)) this.save(true);
+          return;
+        }
+        this.toast.error(errorText(e));
       },
     });
   }

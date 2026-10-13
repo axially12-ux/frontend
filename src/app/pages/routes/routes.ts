@@ -48,7 +48,7 @@ import { Modal } from '../../shared/modal';
                 </div>
                 <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="r.orders_count ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-500'">{{ r.orders_count }} จุด</span>
               </div>
-              <dl class="mt-4 grid grid-cols-2 gap-2 text-sm">
+              <dl class="mt-4 grid grid-cols-3 gap-2 text-sm">
                 <div>
                   <dt class="text-xs text-slate-500">ระยะทาง</dt>
                   <dd class="font-semibold">{{ n(r.total_km).toFixed(2) }} กม.</dd>
@@ -56,6 +56,10 @@ import { Modal } from '../../shared/modal';
                 <div>
                   <dt class="text-xs text-slate-500">ค่าไรเดอร์</dt>
                   <dd class="font-semibold">{{ money(r.total_cost) }}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-slate-500">ส่งแล้ว</dt>
+                  <dd class="font-semibold" [class.text-emerald-600]="n(r.delivered_count) > 0 && n(r.delivered_count) === r.orders_count">{{ n(r.delivered_count) }}/{{ r.orders_count }}</dd>
                 </div>
               </dl>
               @if (r.order_ids) {

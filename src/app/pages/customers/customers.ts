@@ -6,7 +6,7 @@ import { Customer } from '../../core/models';
 import { fullName, mapsUrl, num } from '../../core/format';
 import { ToastService } from '../../core/toast.service';
 import { Modal } from '../../shared/modal';
-import { MapPin, RouteMap } from '../../shared/route-map';
+import { MapPin, MapPoint, RouteMap } from '../../shared/route-map';
 
 interface CustomerForm {
   first_name: string;
@@ -130,14 +130,24 @@ const emptyForm = (): CustomerForm => ({ first_name: '', last_name: '', phone: '
           <label class="label" for="ad">ที่อยู่</label>
           <textarea id="ad" class="field" rows="2" name="address" [(ngModel)]="form.address"></textarea>
         </div>
+        <div>
+          <div class="mb-1 flex items-center justify-between gap-2">
+            <span class="label !mb-0">ตำแหน่งบ้าน — คลิกบนแผนที่ หรือลากหมุดสีแดง</span>
+            <button type="button" class="shrink-0 text-xs font-medium text-brand-600 hover:underline" (click)="useMyLocation()">📍 ใช้ตำแหน่งของฉัน</button>
+          </div>
+          <app-route-map [pickable]="true" [picked]="pickPoint()" (pick)="onPick($event)" height="14rem" />
+          @if (!pickPoint()) {
+            <p class="mt-1 text-xs text-amber-700">ยังไม่ได้เลือกตำแหน่ง — แตะบนแผนที่ตรงบ้านลูกค้า</p>
+          }
+        </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="label" for="la">ละติจูด</label>
-            <input id="la" class="field" type="number" step="any" min="-90" max="90" name="lat" [(ngModel)]="form.lat" required />
+            <input id="la" class="field" type="number" step="any" min="-90" max="90" name="lat" [ngModel]="form.lat" (ngModelChange)="setLat($event)" required />
           </div>
           <div>
             <label class="label" for="lo">ลองจิจูด</label>
-            <input id="lo" class="field" type="number" step="any" min="-180" max="180" name="lng" [(ngModel)]="form.lng" required />
+            <input id="lo" class="field" type="number" step="any" min="-180" max="180" name="lng" [ngModel]="form.lng" (ngModelChange)="setLng($event)" required />
           </div>
         </div>
         <div class="flex justify-end gap-2 pt-2">
@@ -181,6 +191,8 @@ export class Customers implements OnInit {
   formOpen = signal(false);
   editingId = signal<number | null>(null);
   form: CustomerForm = emptyForm();
+  /** ตำแหน่งที่เลือกบนแผนที่ในฟอร์ม (ซิงก์กับช่องละติจูด/ลองจิจูด) */
+  pickPoint = signal<MapPoint | null>(null);
   deleting = signal<Customer | null>(null);
 
   name = fullName;
@@ -250,6 +262,7 @@ export class Customers implements OnInit {
   openCreate() {
     this.editingId.set(null);
     this.form = emptyForm();
+    this.pickPoint.set(null);
     this.formOpen.set(true);
   }
 
@@ -263,7 +276,42 @@ export class Customers implements OnInit {
       lat: num(c.lat),
       lng: num(c.lng),
     };
+    this.syncPick();
     this.formOpen.set(true);
+  }
+
+  onPick(p: MapPoint) {
+    this.form.lat = p.lat;
+    this.form.lng = p.lng;
+    this.pickPoint.set(p);
+  }
+
+  setLat(v: number | null) {
+    this.form.lat = v;
+    this.syncPick();
+  }
+
+  setLng(v: number | null) {
+    this.form.lng = v;
+    this.syncPick();
+  }
+
+  private syncPick() {
+    const { lat, lng } = this.form;
+    const ok = lat !== null && lng !== null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) && Math.abs(Number(lat)) <= 90 && Math.abs(Number(lng)) <= 180;
+    this.pickPoint.set(ok ? { lat: Number(lat), lng: Number(lng) } : null);
+  }
+
+  useMyLocation() {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      this.toast.error('เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => this.onPick({ lat: Number(pos.coords.latitude.toFixed(6)), lng: Number(pos.coords.longitude.toFixed(6)) }),
+      () => this.toast.error('ขอตำแหน่งไม่สำเร็จ (ตรวจสอบว่าอนุญาตการเข้าถึงตำแหน่งแล้ว)'),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
   }
 
   save() {

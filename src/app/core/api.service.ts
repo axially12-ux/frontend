@@ -11,6 +11,7 @@ import {
   RiderJob,
   RouteDetail,
   SavedRoute,
+  Shop,
 } from './models';
 
 /** แปลง error จาก API เป็นข้อความภาษาไทยที่อ่านง่าย */
@@ -77,13 +78,22 @@ export class ApiService {
     return this.http.delete(this.url('/order'));
   }
 
+  /* ---------- shop ---------- */
+  shop(): Observable<Shop | null> {
+    return this.http.get<Shop | null>(this.url('/shop'));
+  }
+  saveShop(s: { name: string; lat: number; lng: number }) {
+    return this.http.put<{ message: string }>(this.url('/shop'), s);
+  }
+
   /* ---------- routes ---------- */
   /** variant = หมายเลขแผน (เปลี่ยนเลขเพื่อได้แผนอื่น), tries = ลองกี่แผนแล้วเลือกต้นทุนต่ำสุด */
   calculate(variant = 0, tries = 1): Observable<PlanResult> {
     return this.http.post<PlanResult>(this.url('/routes/calculate'), { variant, tries });
   }
-  saveRoutes(assignments: { rider_id: number; order_ids: number[] }[]) {
-    return this.http.post<{ message: string; routes: unknown[] }>(this.url('/routes/recalculate'), { assignments });
+  /** force = บันทึกทั้งที่มีไรเดอร์ถึงเกิน 12:30 (ต้องยืนยันกับผู้ใช้ก่อน) */
+  saveRoutes(assignments: { rider_id: number; order_ids: number[] }[], force = false) {
+    return this.http.post<{ message: string; routes: unknown[] }>(this.url('/routes/recalculate'), { assignments, force });
   }
   savedRoutes(): Observable<SavedRoute[]> {
     return this.http.get<SavedRoute[]>(this.url('/routes'));
@@ -101,6 +111,6 @@ export class ApiService {
     return this.http.delete(this.url('/routes'));
   }
   markDelivered(orderId: number, code?: string) {
-    return this.http.patch(this.url(`/routes/stops/${orderId}/delivered`), { code });
+    return this.http.patch<{ delivered_at: string | null; on_time: boolean | null }>(this.url(`/routes/stops/${orderId}/delivered`), { code });
   }
 }
