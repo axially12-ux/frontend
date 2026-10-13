@@ -111,6 +111,9 @@ export class RouteMap implements OnDestroy {
   protected roads = signal<Record<number, { km: number; min: number }>>({});
   protected roadState = signal<'idle' | 'loading' | 'ok' | 'fail'>('idle');
   private drawToken = 0;
+  /** เส้นของไรเดอร์แต่ละคน (เก็บแนวจริงไว้ เพื่อเลื่อนเป็นเลนขนานกันเมื่อใช้ถนนเดียวกัน) */
+  private lanes: { line: Leaflet.Polyline; base: Leaflet.LatLngTuple[]; lane: number }[] = [];
+  private laneCount = 1;
 
   private L?: typeof Leaflet;
   private map?: Leaflet.Map;
@@ -134,6 +137,7 @@ export class RouteMap implements OnDestroy {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(this.map);
       this.layer = this.L.layerGroup().addTo(this.map);
+      this.map.on('zoomend', () => this.relayout());
       this.ready.set(true);
     });
 
@@ -168,7 +172,7 @@ export class RouteMap implements OnDestroy {
         ...r.stops.map(s => [s.lat, s.lng] as Leaflet.LatLngTuple),
       ];
       // เส้นประ = ระยะตรงชั่วคราว จะถูกแทนด้วยเส้นตามถนนจริงเมื่อโหลดเสร็จ
-      const line = L.polyline(pts, { color, weight: 5, opacity: 0.9, lineJoin: 'round', dashArray: pts.length > 1 ? '4 8' : undefined }).addTo(this.layer!);
+      const line = L.polyline(pts, { color, weight: 4, opacity: 0.95, lineJoin: 'round', dashArray: pts.length > 1 ? '4 8' : undefined }).addTo(this.layer!);
       if (pts.length > 1) jobs.push({ line, pts, i });
       for (const s of r.stops) {
         L.marker([s.lat, s.lng], {
@@ -217,8 +221,41 @@ export class RouteMap implements OnDestroy {
     if (bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
     setTimeout(() => map.invalidateSize(), 0);
 
+    this.lanes = jobs.map(j => ({ line: j.line, base: j.pts, lane: j.i }));
+    this.laneCount = Math.max(1, routes.length);
+    this.relayout();
+
     if (jobs.length) void this.loadRoads(jobs, token);
     else this.roadState.set('idle');
+  }
+
+  /**
+   * เลื่อนเส้นของไรเดอร์แต่ละคนไปด้านข้างเล็กน้อย (หน่วยพิกเซล) ให้เป็นเลนขนานกัน
+   * เส้นที่ใช้ถนนร่วมกันจึงไม่ทับกัน เห็นครบทุกสี คำนวณใหม่ทุกครั้งที่ซูม
+   */
+  private relayout() {
+    const map = this.map;
+    if (!map) return;
+    const n = this.laneCount;
+    const spacing = n > 1 ? Math.min(5, 26 / (n - 1)) : 0;
+    for (const l of this.lanes) {
+      const off = (l.lane - (n - 1) / 2) * spacing;
+      if (!off || l.base.length < 2) {
+        l.line.setLatLngs(l.base);
+        continue;
+      }
+      const pts = l.base.map(ll => map.latLngToLayerPoint(ll));
+      const shifted = pts.map((p, k) => {
+        const a = pts[Math.max(0, k - 1)];
+        const b = pts[Math.min(pts.length - 1, k + 1)];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const len = Math.hypot(dx, dy) || 1;
+        // เวกเตอร์ตั้งฉากกับทิศทางเดินทาง
+        return map.layerPointToLatLng([p.x + (-dy / len) * off, p.y + (dx / len) * off] as Leaflet.PointExpression);
+      });
+      l.line.setLatLngs(shifted);
+    }
   }
 
   /** ขอถนนจริงทีละเส้น (เซิร์ฟเวอร์ฟรีจำกัดความถี่) แล้วค่อยๆ แทนเส้นตรง */
@@ -233,8 +270,10 @@ export class RouteMap implements OnDestroy {
         failed++;
         continue;
       }
-      j.line.setLatLngs(road.coords);
+      const lane = this.lanes.find(l => l.line === j.line);
+      if (lane) lane.base = road.coords;
       j.line.setStyle({ dashArray: undefined });
+      this.relayout();
       this.roads.update(r => ({ ...r, [j.i]: { km: road.km, min: road.min } }));
     }
     this.roadState.set(failed ? 'fail' : 'ok');
