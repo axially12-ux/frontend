@@ -42,6 +42,9 @@ import { Modal } from '../../shared/modal';
                 <div>
                   <p class="text-xs text-slate-500">เส้นทาง #{{ r.route_id }}</p>
                   <p class="text-lg font-semibold">{{ r.rider_name }}</p>
+                  @if (r.rider_access_code) {
+                    <p class="text-xs text-slate-500">เลขใบงาน: <b class="font-mono text-base text-slate-900">{{ r.rider_access_code }}</b></p>
+                  }
                 </div>
                 <span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="r.orders_count ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-500'">{{ r.orders_count }} จุด</span>
               </div>

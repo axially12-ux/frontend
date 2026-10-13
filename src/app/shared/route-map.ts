@@ -24,6 +24,41 @@ export interface MapPin {
 export const ROUTE_COLORS = ['#dc2626', '#16a34a', '#2563eb', '#9333ea', '#ea580c', '#0d9488', '#ca8a04', '#db2777'];
 export const ROUTE_COLOR_NAMES = ['แดง', 'เขียว', 'น้ำเงิน', 'ม่วง', 'ส้ม', 'เขียวเทา', 'เหลืองเข้ม', 'ชมพู'];
 
+interface RoadResult {
+  coords: [number, number][];
+  km: number;
+  min: number;
+}
+
+// เก็บผลไว้ ไม่ต้องขอซ้ำเมื่อสลับไปมาระหว่างตัวเลือกเส้นทาง
+const roadCache = new Map<string, RoadResult>();
+
+/** ขอเส้นทางถนนจริงจาก OSRM (เซิร์ฟเวอร์สาธารณะฟรี โปรไฟล์รถยนต์) คืน null ถ้าขอไม่ได้ */
+async function fetchRoad(pts: Leaflet.LatLngTuple[]): Promise<RoadResult | null> {
+  const path = pts.map(p => `${p[1].toFixed(6)},${p[0].toFixed(6)}`).join(';');
+  const hit = roadCache.get(path);
+  if (hit) return hit;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${path}?overview=full&geometries=geojson`, { signal: ctrl.signal });
+    if (!res.ok) return null;
+    const j = await res.json();
+    if (j.code !== 'Ok' || !j.routes?.length) return null;
+    const out: RoadResult = {
+      coords: j.routes[0].geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]),
+      km: j.routes[0].distance / 1000,
+      min: j.routes[0].duration / 60,
+    };
+    roadCache.set(path, out);
+    return out;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 /**
@@ -42,10 +77,20 @@ const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt
       }
     </div>
     @if (routes().length) {
+      <p class="mt-2 text-xs text-slate-500">
+        @switch (roadState()) {
+          @case ('loading') { กำลังโหลดเส้นทางตามถนนจริง… (เส้นประคือระยะตรงชั่วคราว) }
+          @case ('ok') { เส้นทึบคือเส้นทางตามถนนจริง (ข้อมูล OSRM / OpenStreetMap, เวลาคิดแบบรถยนต์) }
+          @case ('fail') { โหลดถนนจริงไม่สำเร็จบางเส้น เส้นประคือระยะตรง }
+        }
+      </p>
       <ul class="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-slate-700">
-        @for (r of legend(); track r.name) {
+        @for (r of legend(); track $index; let i = $index) {
           <li class="flex items-center gap-2">
             <span class="inline-block h-1.5 w-6 rounded-full" [style.background]="r.color"></span>{{ r.name }} <span class="text-slate-400">({{ r.colorName }})</span>
+            @if (roads()[i]; as rd) {
+              <span class="text-xs text-slate-500">· ถนนจริง {{ rd.km.toFixed(1) }} กม. ~{{ rd.min.toFixed(0) }} นาที</span>
+            }
           </li>
         }
         @if (shop()) {
@@ -63,6 +108,9 @@ export class RouteMap implements OnDestroy {
 
   private host = viewChild.required<ElementRef<HTMLDivElement>>('host');
   protected ready = signal(false);
+  protected roads = signal<Record<number, { km: number; min: number }>>({});
+  protected roadState = signal<'idle' | 'loading' | 'ok' | 'fail'>('idle');
+  private drawToken = 0;
 
   private L?: typeof Leaflet;
   private map?: Leaflet.Map;
@@ -108,6 +156,9 @@ export class RouteMap implements OnDestroy {
     const L = this.L!;
     const map = this.map!;
     this.layer!.clearLayers();
+    const token = ++this.drawToken;
+    this.roads.set({});
+    const jobs: { line: Leaflet.Polyline; pts: Leaflet.LatLngTuple[]; i: number }[] = [];
     const bounds: Leaflet.LatLngTuple[] = [];
 
     routes.forEach((r, i) => {
@@ -116,7 +167,9 @@ export class RouteMap implements OnDestroy {
         ...(shop ? [[shop.lat, shop.lng] as Leaflet.LatLngTuple] : []),
         ...r.stops.map(s => [s.lat, s.lng] as Leaflet.LatLngTuple),
       ];
-      L.polyline(pts, { color, weight: 5, opacity: 0.9, lineJoin: 'round' }).addTo(this.layer!);
+      // เส้นประ = ระยะตรงชั่วคราว จะถูกแทนด้วยเส้นตามถนนจริงเมื่อโหลดเสร็จ
+      const line = L.polyline(pts, { color, weight: 5, opacity: 0.9, lineJoin: 'round', dashArray: pts.length > 1 ? '4 8' : undefined }).addTo(this.layer!);
+      if (pts.length > 1) jobs.push({ line, pts, i });
       for (const s of r.stops) {
         L.marker([s.lat, s.lng], {
           icon: L.divIcon({
@@ -163,5 +216,27 @@ export class RouteMap implements OnDestroy {
 
     if (bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
     setTimeout(() => map.invalidateSize(), 0);
+
+    if (jobs.length) void this.loadRoads(jobs, token);
+    else this.roadState.set('idle');
+  }
+
+  /** ขอถนนจริงทีละเส้น (เซิร์ฟเวอร์ฟรีจำกัดความถี่) แล้วค่อยๆ แทนเส้นตรง */
+  private async loadRoads(jobs: { line: Leaflet.Polyline; pts: Leaflet.LatLngTuple[]; i: number }[], token: number) {
+    this.roadState.set('loading');
+    let failed = 0;
+    for (const j of jobs) {
+      if (token !== this.drawToken) return;
+      const road = await fetchRoad(j.pts);
+      if (token !== this.drawToken) return;
+      if (!road) {
+        failed++;
+        continue;
+      }
+      j.line.setLatLngs(road.coords);
+      j.line.setStyle({ dashArray: undefined });
+      this.roads.update(r => ({ ...r, [j.i]: { km: road.km, min: road.min } }));
+    }
+    this.roadState.set(failed ? 'fail' : 'ok');
   }
 }

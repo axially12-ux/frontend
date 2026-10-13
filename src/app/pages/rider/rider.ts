@@ -15,10 +15,10 @@ const STORAGE_KEY = 'rider.access_code';
   template: `
     <div class="mx-auto max-w-md">
       <h1 class="text-2xl font-bold">สำหรับไรเดอร์</h1>
-      <p class="mb-5 text-sm text-slate-500">ใส่รหัสเข้าดูงานเพื่อดูเส้นทางของคุณ</p>
+      <p class="mb-5 text-sm text-slate-500">กรอกเลขใบงานเพื่อดูงานของคุณวันนี้</p>
 
       <form class="card flex gap-2 p-4" (ngSubmit)="load()">
-        <input class="field" name="code" [(ngModel)]="code" placeholder="รหัสเข้าดูงาน" aria-label="รหัสเข้าดูงาน" autocomplete="off" autocapitalize="off" />
+        <input class="field" name="code" [(ngModel)]="code" placeholder="กรอกเลขใบงาน" aria-label="เลขใบงาน" autocomplete="off" autocapitalize="off" />
         <button class="btn btn-primary" type="submit" [disabled]="loading() || !code.trim()">{{ loading() ? '…' : 'ดูงาน' }}</button>
       </form>
 

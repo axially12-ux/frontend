@@ -40,11 +40,17 @@ export interface PlanStop {
   lng: number;
   boxes: number;
   leg_km: number;
+  arrive_minutes?: number;
+  arrive_time?: string;
 }
 
 export interface PlanRoute {
   rider_id: number;
   rider_name: string;
+  rider_phone?: string;
+  access_code?: string;
+  on_time?: boolean;
+  is_new?: boolean;
   orders_count: number;
   total_boxes: number;
   total_km: number;
@@ -68,6 +74,7 @@ export interface PlanSummary {
   food_cost: number;
   profit_before_other_expenses: number;
   within_one_hour?: boolean;
+  latest_arrival_minutes?: number;
 }
 
 export interface PlanResult {
@@ -80,6 +87,8 @@ export interface PlanResult {
     service_minutes_per_stop: number;
     delivery_window: string;
   };
+  variant?: number;
+  tries?: number;
   routes: PlanRoute[];
   unassigned: { order_id: number; reason: string }[];
   summary: PlanSummary;
@@ -95,6 +104,7 @@ export interface SavedRoute {
   created_at: string;
   orders_count: number;
   order_ids: string | null;
+  rider_access_code?: string;
 }
 
 export interface RouteStop {

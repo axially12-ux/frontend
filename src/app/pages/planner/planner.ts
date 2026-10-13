@@ -25,6 +25,9 @@ interface Option {
         <button type="button" class="btn btn-ghost" [disabled]="loading() || saving()" (click)="calculate()">
           {{ loading() ? 'กำลังคำนวณ…' : options().length ? '↻ คำนวณใหม่ / ดูตัวเลือกอื่น' : 'คำนวณเส้นทาง' }}
         </button>
+        @if (options().length) {
+          <button type="button" class="btn btn-ghost" [disabled]="loading() || saving()" (click)="best()">★ หาแผนที่คุ้มที่สุด</button>
+        }
         @if (plan()?.routes?.length) {
           <button type="button" class="btn btn-primary" [disabled]="saving() || loading()" (click)="save()">
             {{ saving() ? 'กำลังบันทึก…' : '✓ ใช้แผนนี้ มอบหมายงาน' }}
@@ -75,7 +78,7 @@ interface Option {
         @if (loss()) {
           <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-red-50 p-4 text-sm text-red-900 ring-1 ring-red-200">
             <p><b>แผนนี้ขาดทุน {{ money(-n(p.summary.profit_before_other_expenses)) }}</b> (ค่าไรเดอร์ {{ money(p.summary.total_rider_cost) }} สูงกว่ากำไรจากอาหาร) ลองคำนวณใหม่เพื่อหาเส้นทางที่ไม่ขาดทุน</p>
-            <button type="button" class="btn btn-primary !bg-red-600" [disabled]="loading()" (click)="calculate()">↻ คำนวณใหม่</button>
+            <button type="button" class="btn btn-primary !bg-red-600" [disabled]="loading()" (click)="best()">★ หาแผนที่ไม่ขาดทุน</button>
           </div>
         }
 
@@ -127,8 +130,9 @@ interface Option {
             <div class="card overflow-hidden">
               <div class="flex items-center justify-between gap-2 px-4 py-3" [style.border-left]="'6px solid ' + color(i)">
                 <div>
-                  <p class="font-semibold">{{ r.rider_name }} <span class="text-xs font-medium" [style.color]="color(i)">({{ colorName(i) }})</span></p>
+                  <p class="font-semibold">{{ r.rider_name }} <span class="text-xs font-medium" [style.color]="color(i)">({{ colorName(i) }})</span>@if (r.is_new) { <span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">เรียกเพิ่ม</span> }</p>
                   <p class="text-xs text-slate-500">{{ r.orders_count }} ออเดอร์ · {{ r.total_boxes }} กล่อง · {{ r.total_km }} กม.</p>
+                  <p class="mt-0.5 text-xs text-slate-500">เลขใบงานออกให้ตอนกดบันทึก</p>
                 </div>
                 <div class="text-right">
                   <p class="text-sm font-semibold">ถึงประมาณ {{ r.estimated_arrival }}</p>
@@ -145,7 +149,7 @@ interface Option {
                     </div>
                     <div class="text-right text-xs text-slate-500">
                       <p>{{ s.boxes }} กล่อง</p>
-                      <p>+{{ s.leg_km }} กม.</p>
+                      <p>{{ s.arrive_time ? 'ถึง ' + s.arrive_time + ' · ' : '' }}+{{ s.leg_km }} กม.</p>
                     </div>
                   </li>
                 }
@@ -198,6 +202,33 @@ export class Planner {
 
   private nextVariant = 0;
 
+  /** ให้ระบบลองหลายสิบแผนแล้วเลือกแผนที่ค่าส่งรวมต่ำสุด (กำไรสูงสุด) */
+  best() {
+    this.loading.set(true);
+    this.api.calculate(1000 + this.options().length, 40).subscribe({
+      next: r => {
+        this.loading.set(false);
+        const sig = this.signature(r);
+        const existing = this.options().find(o => o.sig === sig);
+        if (existing) {
+          this.selected.set(existing.no);
+          this.toast.ok('แผนที่คุ้มที่สุดที่หาได้คือตัวเลือกที่มีอยู่แล้ว');
+          return;
+        }
+        const no = this.options().length + 1;
+        this.options.update(l => [...l, { no, plan: r, sig }]);
+        this.selected.set(no);
+        if (num(r.summary.profit_before_other_expenses) < 0) {
+          this.toast.error('ลองหลายแผนแล้วยังขาดทุน — ออเดอร์อาจน้อยหรืออยู่ไกลเกินไป');
+        }
+      },
+      error: e => {
+        this.toast.error(errorText(e));
+        this.loading.set(false);
+      },
+    });
+  }
+
   /** ครั้งแรกได้แผนมาตรฐาน กดซ้ำจะลองจัดกลุ่มแบบอื่นจนได้เส้นทางที่ยังไม่เคยเห็น (ลองสูงสุด 6 แบบต่อการกด) */
   calculate() {
     this.loading.set(true);
@@ -237,7 +268,7 @@ export class Planner {
     const p = this.plan();
     if (!p?.routes.length) return;
     if (this.loss() && !confirm('แผนนี้ขาดทุน ต้องการมอบหมายงานตามแผนนี้จริงหรือไม่?')) return;
-    const assignments = p.routes.map(r => ({ rider_id: r.rider_id, order_ids: r.stops.map(s => s.order_id) }));
+    const assignments = p.routes.map(r => ({ rider_id: r.rider_id, rider_name: r.rider_name, order_ids: r.stops.map(s => s.order_id) }));
     this.saving.set(true);
     this.api.saveRoutes(assignments).subscribe({
       next: () => {

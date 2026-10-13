@@ -78,9 +78,9 @@ export class ApiService {
   }
 
   /* ---------- routes ---------- */
-  /** variant 0 = แผนมาตรฐาน, 1+ = เส้นทางทางเลือก */
-  calculate(variant = 0): Observable<PlanResult> {
-    return this.http.post<PlanResult>(this.url('/routes/calculate'), { variant });
+  /** variant = หมายเลขแผน (เปลี่ยนเลขเพื่อได้แผนอื่น), tries = ลองกี่แผนแล้วเลือกต้นทุนต่ำสุด */
+  calculate(variant = 0, tries = 1): Observable<PlanResult> {
+    return this.http.post<PlanResult>(this.url('/routes/calculate'), { variant, tries });
   }
   saveRoutes(assignments: { rider_id: number; order_ids: number[] }[]) {
     return this.http.post<{ message: string; routes: unknown[] }>(this.url('/routes/recalculate'), { assignments });
