@@ -100,7 +100,7 @@ export class ApiService {
   clearRoutes() {
     return this.http.delete(this.url('/routes'));
   }
-  markDelivered(orderId: number) {
-    return this.http.patch(this.url(`/routes/stops/${orderId}/delivered`), {});
+  markDelivered(orderId: number, code?: string) {
+    return this.http.patch(this.url(`/routes/stops/${orderId}/delivered`), { code });
   }
 }

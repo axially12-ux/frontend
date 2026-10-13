@@ -131,9 +131,25 @@ export interface RouteDetail {
   stops: RouteStop[];
 }
 
+export interface RiderStop extends RouteStop {
+  leg_km?: number;
+  arrive_time?: string | null;
+  amount?: number;
+}
+
 export interface RiderJob {
   rider: { id: number; name: string; phone: string };
+  shop?: { id: number; name: string; lat: number | string; lng: number | string } | null;
   route: { route_id: number; total_km: number | string; total_cost: number | string; created_at: string } | null;
-  stops?: RouteStop[];
+  stops?: RiderStop[];
+  summary?: {
+    stops: number;
+    delivered: number;
+    remaining: number;
+    total_boxes: number;
+    total_amount: number;
+    last_arrival: string | null;
+    deadline: string;
+  };
   message?: string;
 }
