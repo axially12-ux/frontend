@@ -35,7 +35,7 @@ type Tab = 'todo' | 'done' | 'all';
           class="btn btn-ghost shrink-0 text-sm"
           (click)="goToLogin()"
         >
-          ← กลับหน้าเข้าสู่ระบบ
+          ← ย้อนกลับ
         </button>
       </div>
 
