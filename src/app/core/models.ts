@@ -96,8 +96,6 @@ export interface PlanResult {
     service_minutes_per_stop: number;
     delivery_window: string;
   };
-  variant?: number;
-  tries?: number;
   /** road = ระยะทางตามถนนจริง, estimate = ประมาณจากเส้นตรง (เซิร์ฟเวอร์ขอข้อมูลถนนไม่ได้ชั่วคราว) */
   distance_source?: 'road' | 'estimate';
   routes: PlanRoute[];

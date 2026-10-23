@@ -7,12 +7,6 @@ import { baht, num } from '../../core/format';
 import { ToastService } from '../../core/toast.service';
 import { MapRoute, ROUTE_COLORS, ROUTE_COLOR_NAMES, RouteMap } from '../../shared/route-map';
 
-interface Option {
-  no: number;
-  plan: PlanResult;
-  sig: string;
-}
-
 @Component({
   selector: 'app-planner',
   imports: [RouterLink, RouteMap],
@@ -23,12 +17,9 @@ interface Option {
         <p class="text-sm text-slate-500">กดคำนวณตอนอาหารเสร็จ (ประมาณ 11:30 น.) · ต้องถึงมือลูกค้าไม่เกิน 12:30 น. · ไรเดอร์คนละไม่เกิน 3 ออเดอร์</p>
       </div>
       <div class="flex gap-2">
-        <button type="button" class="btn btn-ghost" [disabled]="loading() || saving()" (click)="calculate()">
-          {{ loading() ? 'กำลังคำนวณ…' : options().length ? '↻ คำนวณใหม่ / ดูตัวเลือกอื่น' : 'คำนวณเส้นทาง' }}
+        <button type="button" class="btn" [class]="plan() ? 'btn-ghost' : 'btn-primary'" [disabled]="loading() || saving()" (click)="calculate()">
+          {{ loading() ? 'กำลังคำนวณ…' : plan() ? '↻ คำนวณใหม่' : '★ คำนวณเส้นทางที่ดีที่สุด' }}
         </button>
-        @if (options().length) {
-          <button type="button" class="btn btn-ghost" [disabled]="loading() || saving()" (click)="best()">★ หาแผนที่คุ้มที่สุด</button>
-        }
         @if (plan()?.routes?.length) {
           <button type="button" class="btn btn-primary" [disabled]="saving() || loading()" (click)="save()">
             {{ saving() ? 'กำลังบันทึก…' : '✓ ใช้แผนนี้ มอบหมายงาน' }}
@@ -40,14 +31,14 @@ interface Option {
     @if (loading() && !plan()) {
       <div class="card p-8 text-center text-sm text-slate-500">
         <div class="skeleton mx-auto mb-4 h-4 w-48"></div>
-        กำลังคำนวณเส้นทาง… (ครั้งแรกอาจใช้เวลาสักครู่เพราะเซิร์ฟเวอร์ต้องตื่น)
+        กำลังหาเส้นทางที่ดีที่สุด… (ครั้งแรกอาจใช้เวลาสักครู่เพราะเซิร์ฟเวอร์ต้องตื่น)
       </div>
     } @else if (!plan()) {
       <div class="card px-6 py-16 text-center">
         <p class="text-4xl">🛵</p>
         <p class="mt-3 font-semibold">ยังไม่ได้คำนวณ</p>
-        <p class="mx-auto mt-1 max-w-sm text-sm text-slate-500">กดปุ่มเดียว ระบบจะแบ่งออเดอร์ที่ค้างอยู่ให้ไรเดอร์ (คนละไม่เกิน 3 ออเดอร์) และเรียงลำดับส่งให้สั้นที่สุด</p>
-        <button type="button" class="btn btn-primary mt-5" (click)="calculate()">คำนวณเส้นทาง</button>
+        <p class="mx-auto mt-1 max-w-sm text-sm text-slate-500">กดปุ่มเดียว ระบบจะลองหลายแบบแล้วเลือกเส้นทางที่ดีที่สุดให้ทันที (ไรเดอร์คนละไม่เกิน 3 ออเดอร์ และเรียงลำดับส่งให้สั้นที่สุด)</p>
+        <button type="button" class="btn btn-primary mt-5" (click)="calculate()">★ คำนวณเส้นทางที่ดีที่สุด</button>
       </div>
     } @else {
       @let p = plan()!;
@@ -57,29 +48,10 @@ interface Option {
           <a routerLink="/orders" class="btn btn-primary mt-4">ไปหน้าออเดอร์</a>
         </div>
       } @else {
-        <!-- ตัวเลือกเส้นทาง -->
-        @if (options().length > 1) {
-          <div class="mb-4 flex flex-wrap items-center gap-2">
-            <span class="text-sm font-medium text-slate-600">ตัวเลือกที่คำนวณไว้:</span>
-            @for (o of options(); track o.no) {
-              <button
-                type="button"
-                class="rounded-xl px-3 py-1.5 text-left text-xs ring-1"
-                [class]="selected() === o.no ? 'bg-ink text-white ring-ink' : 'bg-white text-slate-700 ring-slate-300 hover:bg-slate-50'"
-                (click)="selected.set(o.no)"
-              >
-                <b>ตัวเลือก {{ o.no }}</b> · {{ n(o.plan.summary.total_km).toFixed(1) }} กม. · {{ maxMinutes(o.plan) }} นาที ·
-                <span [class]="n(o.plan.summary.profit_before_other_expenses) >= 0 ? (selected() === o.no ? 'text-emerald-300' : 'text-emerald-600') : (selected() === o.no ? 'text-red-300' : 'text-red-600')">{{ money(o.plan.summary.profit_before_other_expenses) }}</span>
-              </button>
-            }
-          </div>
-        }
-
         <!-- แจ้งเตือนขาดทุน -->
         @if (loss()) {
-          <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-red-50 p-4 text-sm text-red-900 ring-1 ring-red-200">
-            <p><b>แผนนี้ขาดทุน {{ money(-n(p.summary.profit_before_other_expenses)) }}</b> (ค่าไรเดอร์ {{ money(p.summary.total_rider_cost) }} สูงกว่ากำไรจากอาหาร) ลองคำนวณใหม่เพื่อหาเส้นทางที่ไม่ขาดทุน</p>
-            <button type="button" class="btn btn-primary !bg-red-600" [disabled]="loading()" (click)="best()">★ หาแผนที่ไม่ขาดทุน</button>
+          <div class="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-900 ring-1 ring-red-200">
+            <p><b>แผนนี้ขาดทุน {{ money(-n(p.summary.profit_before_other_expenses)) }}</b> (ค่าไรเดอร์ {{ money(p.summary.total_rider_cost) }} สูงกว่ากำไรจากอาหาร) นี่คือแผนที่ดีที่สุดที่ระบบหาได้แล้ว ออเดอร์อาจน้อยหรืออยู่ไกลเกินไป</p>
           </div>
         }
 
@@ -180,10 +152,7 @@ export class Planner {
 
   loading = signal(false);
   saving = signal(false);
-  options = signal<Option[]>([]);
-  selected = signal(0);
-
-  plan = computed<PlanResult | null>(() => this.options().find(o => o.no === this.selected())?.plan ?? null);
+  plan = signal<PlanResult | null>(null);
   loss = computed(() => num(this.plan()?.summary.profit_before_other_expenses) < 0);
 
   shop = computed(() => {
@@ -204,66 +173,13 @@ export class Planner {
   colorName = (i: number) => ROUTE_COLOR_NAMES[i % ROUTE_COLOR_NAMES.length];
   maxMinutes = (p: PlanResult) => Math.max(0, ...p.routes.map(r => num(r.estimated_minutes)));
 
-  private signature(p: PlanResult) {
-    return p.routes.map(r => `${r.rider_id}:${r.stops.map(s => s.order_id).join('>')}`).join('|');
-  }
-
-  private nextVariant = 0;
-
-  /** ให้ระบบลองหลายสิบแผนแล้วเลือกแผนที่ค่าส่งรวมต่ำสุด (กำไรสูงสุด) */
-  best() {
-    this.loading.set(true);
-    this.api.calculate(1000 + this.options().length, 40).subscribe({
-      next: r => {
-        this.loading.set(false);
-        const sig = this.signature(r);
-        const existing = this.options().find(o => o.sig === sig);
-        if (existing) {
-          this.selected.set(existing.no);
-          this.toast.ok('แผนที่คุ้มที่สุดที่หาได้คือตัวเลือกที่มีอยู่แล้ว');
-          return;
-        }
-        const no = this.options().length + 1;
-        this.options.update(l => [...l, { no, plan: r, sig }]);
-        this.selected.set(no);
-        if (num(r.summary.profit_before_other_expenses) < 0) {
-          this.toast.error('ลองหลายแผนแล้วยังขาดทุน — ออเดอร์อาจน้อยหรืออยู่ไกลเกินไป');
-        }
-      },
-      error: e => {
-        this.toast.error(errorText(e));
-        this.loading.set(false);
-      },
-    });
-  }
-
-  /** ครั้งแรกได้แผนมาตรฐาน กดซ้ำจะลองจัดกลุ่มแบบอื่นจนได้เส้นทางที่ยังไม่เคยเห็น (ลองสูงสุด 6 แบบต่อการกด) */
+  /** ให้เซิร์ฟเวอร์ลองหลายแบบแล้วเลือกแผนที่ดีที่สุดเพียงแผนเดียว */
   calculate() {
     this.loading.set(true);
-    this.tryVariant(this.nextVariant, 0);
-  }
-
-  private tryVariant(variant: number, attempt: number) {
-    this.api.calculate(variant).subscribe({
+    this.api.calculate().subscribe({
       next: r => {
-        this.nextVariant = variant + 1;
-        const sig = this.signature(r);
-        const existing = this.options().find(o => o.sig === sig);
-        if (!existing) {
-          const no = this.options().length + 1;
-          this.options.update(l => [...l, { no, plan: r, sig }]);
-          this.selected.set(no);
-          this.loading.set(false);
-          return;
-        }
-        // ซ้ำกับที่เคยเห็น: ลองแบบถัดไป (ออเดอร์น้อยมากอาจจัดได้แบบเดียว)
-        if (!r.routes.length || attempt >= 5) {
-          this.selected.set(existing.no);
-          this.toast.ok('ลองหลายแบบแล้ว ยังไม่พบเส้นทางอื่นที่ต่างจากที่มีอยู่ (ออเดอร์อาจน้อยหรือจัดได้แบบเดียว)');
-          this.loading.set(false);
-          return;
-        }
-        this.tryVariant(variant + 1, attempt + 1);
+        this.plan.set(r);
+        this.loading.set(false);
       },
       error: e => {
         this.toast.error(errorText(e));

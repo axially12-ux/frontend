@@ -87,9 +87,9 @@ export class ApiService {
   }
 
   /* ---------- routes ---------- */
-  /** variant = หมายเลขแผน (เปลี่ยนเลขเพื่อได้แผนอื่น), tries = ลองกี่แผนแล้วเลือกต้นทุนต่ำสุด */
-  calculate(variant = 0, tries = 1): Observable<PlanResult> {
-    return this.http.post<PlanResult>(this.url('/routes/calculate'), { variant, tries });
+  /** ให้เซิร์ฟเวอร์คำนวณและตอบกลับแผนที่ดีที่สุดเพียงแผนเดียว */
+  calculate(): Observable<PlanResult> {
+    return this.http.post<PlanResult>(this.url('/routes/calculate'), {});
   }
   /** force = บันทึกทั้งที่มีไรเดอร์ถึงเกิน 12:30 (ต้องยืนยันกับผู้ใช้ก่อน) */
   saveRoutes(assignments: { rider_id: number; order_ids: number[] }[], force = false) {

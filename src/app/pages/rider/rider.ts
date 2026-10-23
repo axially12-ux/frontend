@@ -26,14 +26,14 @@ type Tab = 'todo' | 'done' | 'all';
   template: `
     <div class="mx-auto max-w-md pb-10">
 
-      <!-- หัวหน้าและปุ่มกลับหน้า Login -->
+      <!-- หัวหน้าและปุ่มกลับหน้าหลัก -->
       <div class="mb-4 flex items-center justify-between gap-3">
         <h1 class="text-2xl font-bold">สำหรับไรเดอร์</h1>
 
         <button
           type="button"
           class="btn btn-ghost shrink-0 text-sm"
-          (click)="goToLogin()"
+          (click)="goHome()"
         >
           ← ย้อนกลับ
         </button>
@@ -543,11 +543,11 @@ export class RiderPage {
   }
 
   /**
-   * กลับหน้า Login และล้างเลขใบงานที่จำไว้
+   * กลับหน้าหลักและล้างเลขใบงานที่จำไว้
    */
-  goToLogin() {
+  goHome() {
     this.logout();
-    this.router.navigate(['/login']);
+    this.router.navigate(['/']);
   }
 
   load() {
