@@ -3,8 +3,6 @@ export const num = (v: unknown): number => Number(v) || 0;
 export const baht = (v: unknown): string =>
   '฿' + num(v).toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
-export const km = (v: unknown): string => num(v).toFixed(2) + ' กม.';
-
 export function fmtDate(v: string | null | undefined): string {
   if (!v) return '-';
   const d = new Date(v);
@@ -24,13 +22,4 @@ export function fmtTime(v: string | null | undefined): string {
   const d = new Date(v);
   if (isNaN(d.getTime())) return String(v);
   return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' });
-}
-
-/** ส่งช้ากว่า 12:30 (เวลาไทย) หรือไม่ ว่างถ้ายังไม่มีเวลาส่ง */
-export function deliveredLate(v: string | null | undefined): boolean | null {
-  if (!v) return null;
-  const d = new Date(v);
-  if (isNaN(d.getTime())) return null;
-  const th = new Date(d.getTime() + 7 * 3600 * 1000);
-  return th.getUTCHours() * 60 + th.getUTCMinutes() > 12 * 60 + 30;
 }

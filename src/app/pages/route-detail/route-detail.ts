@@ -4,7 +4,7 @@ import { ApiService, errorText } from '../../core/api.service';
 import { RouteDetail } from '../../core/models';
 import { baht, fmtDate, fullName, mapsUrl, num } from '../../core/format';
 import { ToastService } from '../../core/toast.service';
-import { MapRoute, RouteMap } from '../../shared/route-map';
+import { MapRoute, RouteMap, riderColorIndex, routeColor } from '../../shared/route-map';
 import { StatusBadge } from '../../shared/status-badge';
 
 @Component({
@@ -21,7 +21,7 @@ import { StatusBadge } from '../../shared/status-badge';
       @let r = route()!;
       <div class="mb-6 mt-2 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 class="text-2xl font-bold">เส้นทาง #{{ r.id }} · {{ r.rider_name }}</h1>
+          <h1 class="text-2xl font-bold">เส้นทาง #{{ r.id }} · <span [style.color]="color(r)">{{ r.rider_name }}</span></h1>
           <p class="text-sm text-slate-500">โทร {{ r.rider_phone }} · สร้างเมื่อ {{ date(r.created_at) }}</p>
         </div>
         <div class="flex gap-6 text-right">
@@ -44,15 +44,15 @@ import { StatusBadge } from '../../shared/status-badge';
         <div class="card p-4 lg:col-span-3">
           <h2 class="mb-3 font-semibold">แผนผังจุดส่ง</h2>
           <app-route-map [routes]="mapRoutes()" />
-          <p class="mt-2 text-xs text-slate-500">เส้นเริ่มจากจุดส่งที่ 1 (ไม่แสดงตำแหน่งร้านในหน้านี้)</p>
+          <p class="mt-2 text-xs text-slate-500">เส้นเริ่มจากจุดส่งที่ 1 (ไม่แสดงตำแหน่งร้านในหน้านี้) · แตะหมุดเพื่อดูเลขออเดอร์</p>
         </div>
         <div class="card lg:col-span-2">
           <ol class="divide-y divide-slate-100">
             @for (s of r.stops; track s.order_id) {
               <li class="flex items-start gap-3 p-4">
-                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">{{ s.seq }}</span>
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" [style.background]="color(r)">{{ s.seq }}</span>
                 <div class="min-w-0 flex-1">
-                  <p class="font-medium">{{ name(s) }} <span class="text-slate-400">· #{{ s.order_id }}</span></p>
+                  <p class="font-medium"><span class="mr-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-700">ออเดอร์ #{{ s.order_id }}</span>{{ name(s) }}</p>
                   <p class="text-sm text-slate-600">{{ s.address || '-' }}</p>
                   <p class="mt-1 text-xs text-slate-500">
                     {{ s.boxes }} กล่อง · {{ s.phone }} ·
@@ -81,10 +81,19 @@ export class RouteDetailPage {
   delivered = computed(() => this.route()?.stops.filter(s => s.status === 'delivered').length ?? 0);
   mapRoutes = computed<MapRoute[]>(() => {
     const r = this.route();
-    return r ? [{ name: r.rider_name, stops: r.stops.map(s => ({ lat: num(s.lat), lng: num(s.lng), seq: s.seq })) }] : [];
+    return r
+      ? [
+          {
+            name: r.rider_name,
+            colorIndex: riderColorIndex(r.rider_id),
+            stops: r.stops.map(s => ({ lat: num(s.lat), lng: num(s.lng), seq: s.seq, label: `ออเดอร์ #${s.order_id} · ${fullName(s)} · ${s.boxes} กล่อง` })),
+          },
+        ]
+      : [];
   });
 
   name = fullName;
+  color = (r: { rider_id: number }) => routeColor(riderColorIndex(r.rider_id));
   n = num;
   money = baht;
   date = fmtDate;

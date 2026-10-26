@@ -5,6 +5,7 @@ import { SavedRoute } from '../../core/models';
 import { baht, fmtDate, num } from '../../core/format';
 import { ToastService } from '../../core/toast.service';
 import { Modal } from '../../shared/modal';
+import { riderColorIndex, routeColor } from '../../shared/route-map';
 
 @Component({
   selector: 'app-routes',
@@ -36,7 +37,7 @@ import { Modal } from '../../shared/modal';
     } @else {
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         @for (r of routes(); track r.route_id) {
-          <div class="card flex flex-col transition hover:shadow-md hover:ring-brand-200">
+          <div class="card flex flex-col border-l-4 transition hover:shadow-md hover:ring-brand-200" [style.border-left-color]="color(r)">
             <a [routerLink]="['/routes', r.route_id]" class="block flex-1 p-5">
               <div class="flex items-start justify-between">
                 <div>
@@ -102,6 +103,7 @@ export class RoutesPage implements OnInit {
 
   loading = signal(true);
   routes = signal<SavedRoute[]>([]);
+  color = (r: { rider_id: number }) => routeColor(riderColorIndex(r.rider_id));
   n = num;
   money = baht;
   date = fmtDate;

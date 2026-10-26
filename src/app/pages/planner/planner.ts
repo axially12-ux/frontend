@@ -5,7 +5,7 @@ import { ApiService, errorText } from '../../core/api.service';
 import { PlanResult } from '../../core/models';
 import { baht, num } from '../../core/format';
 import { ToastService } from '../../core/toast.service';
-import { MapRoute, ROUTE_COLORS, ROUTE_COLOR_NAMES, RouteMap } from '../../shared/route-map';
+import { MapRoute, RouteMap, riderColorIndex, routeColor, routeColorName } from '../../shared/route-map';
 
 @Component({
   selector: 'app-planner',
@@ -17,9 +17,11 @@ import { MapRoute, ROUTE_COLORS, ROUTE_COLOR_NAMES, RouteMap } from '../../share
         <p class="text-sm text-slate-500">กดคำนวณตอนอาหารเสร็จ (ประมาณ 11:30 น.) · ต้องถึงมือลูกค้าไม่เกิน 12:30 น. · ไรเดอร์คนละไม่เกิน 3 ออเดอร์</p>
       </div>
       <div class="flex gap-2">
-        <button type="button" class="btn" [class]="plan() ? 'btn-ghost' : 'btn-primary'" [disabled]="loading() || saving()" (click)="calculate()">
-          {{ loading() ? 'กำลังคำนวณ…' : plan() ? '↻ คำนวณใหม่' : '★ คำนวณเส้นทางที่ดีที่สุด' }}
-        </button>
+        @if (!plan()) {
+          <button type="button" class="btn btn-primary" [disabled]="loading()" (click)="calculate()">
+            {{ loading() ? 'กำลังคำนวณ…' : '★ คำนวณเส้นทางที่ดีที่สุด' }}
+          </button>
+        }
         @if (plan()?.routes?.length) {
           <button type="button" class="btn btn-primary" [disabled]="saving() || loading()" (click)="save()">
             {{ saving() ? 'กำลังบันทึก…' : '✓ ใช้แผนนี้ มอบหมายงาน' }}
@@ -84,7 +86,7 @@ import { MapRoute, ROUTE_COLORS, ROUTE_COLOR_NAMES, RouteMap } from '../../share
         @if (p.distance_source === 'estimate') {
           <div class="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200">
             <p class="font-semibold">ตัวเลขนี้เป็นการประมาณ</p>
-            <p class="mt-0.5">เซิร์ฟเวอร์ขอข้อมูลถนนจริงไม่ได้ชั่วคราว จึงประมาณระยะทางจากเส้นตรง × 1.3 ลองกด "คำนวณใหม่" อีกครั้งในอีกสักครู่เพื่อให้ได้ระยะตามถนนจริง</p>
+            <p class="mt-0.5">เซิร์ฟเวอร์ขอข้อมูลถนนจริงไม่ได้ชั่วคราว จึงประมาณระยะทางจากเส้นตรง × 1.3</p>
           </div>
         }
 
@@ -99,18 +101,18 @@ import { MapRoute, ROUTE_COLORS, ROUTE_COLOR_NAMES, RouteMap } from '../../share
         <div class="card mt-4 p-4">
           <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 class="font-semibold">แผนที่เส้นทางไรเดอร์</h2>
-            <p class="text-xs text-slate-500">ตัวเลขคือลำดับส่ง · เส้นเริ่มจากร้าน · แตะหมุดเพื่อดูชื่อลูกค้า · {{ p.distance_source === 'estimate' ? 'ระยะทางที่คำนวณเป็นค่าประมาณ (เส้นตรง × 1.3)' : 'ระยะทางที่คำนวณเป็นระยะตามถนนจริง' }}</p>
+            <p class="text-xs text-slate-500">ตัวเลขคือลำดับส่ง · เส้นเริ่มจากร้าน · แตะหมุดเพื่อดูเลขออเดอร์และชื่อลูกค้า · {{ p.distance_source === 'estimate' ? 'ระยะทางที่คำนวณเป็นค่าประมาณ (เส้นตรง × 1.3)' : 'ระยะทางที่คำนวณเป็นระยะตามถนนจริง' }}</p>
           </div>
           <app-route-map [shop]="shop()" [routes]="mapRoutes()" height="min(70vh, 36rem)" />
         </div>
 
         <!-- รายละเอียดไรเดอร์แต่ละคน -->
         <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          @for (r of p.routes; track r.rider_id; let i = $index) {
+          @for (r of p.routes; track r.rider_id) {
             <div class="card overflow-hidden">
-              <div class="flex items-center justify-between gap-2 px-4 py-3" [style.border-left]="'6px solid ' + color(i)">
+              <div class="flex items-center justify-between gap-2 px-4 py-3" [style.border-left]="'6px solid ' + color(r)">
                 <div>
-                  <p class="font-semibold">{{ r.rider_name }} <span class="text-xs font-medium" [style.color]="color(i)">({{ colorName(i) }})</span>@if (r.is_new) { <span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">เรียกเพิ่ม</span> }</p>
+                  <p class="font-semibold">{{ r.rider_name }} <span class="text-xs font-medium" [style.color]="color(r)">({{ colorName(r) }})</span>@if (r.is_new) { <span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">เรียกเพิ่ม</span> }</p>
                   <p class="text-xs text-slate-500">{{ r.orders_count }} ออเดอร์ · {{ r.total_boxes }} กล่อง · {{ r.total_km }} กม.</p>
                   <p class="mt-0.5 text-xs text-slate-500">เลขใบงานออกให้ตอนกดบันทึก</p>
                 </div>
@@ -122,7 +124,7 @@ import { MapRoute, ROUTE_COLORS, ROUTE_COLOR_NAMES, RouteMap } from '../../share
               <ol class="divide-y divide-slate-100 border-t border-slate-100">
                 @for (s of r.stops; track s.order_id) {
                   <li class="flex items-start gap-3 px-4 py-2.5 text-sm">
-                    <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" [style.background]="color(i)">{{ s.seq }}</span>
+                    <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" [style.background]="color(r)">{{ s.seq }}</span>
                     <div class="min-w-0 flex-1">
                       <p class="font-medium">{{ s.customer_name }} <span class="text-slate-400">· #{{ s.order_id }}</span></p>
                       <p class="truncate text-xs text-slate-500">{{ s.address || '-' }}</p>
@@ -162,15 +164,16 @@ export class Planner {
   mapRoutes = computed<MapRoute[]>(() =>
     (this.plan()?.routes ?? []).map(r => ({
       name: r.rider_name,
-      stops: r.stops.map(s => ({ lat: s.lat, lng: s.lng, seq: s.seq, label: `${s.customer_name} · ${s.boxes} กล่อง` })),
+      colorIndex: riderColorIndex(r.rider_id),
+      stops: r.stops.map(s => ({ lat: s.lat, lng: s.lng, seq: s.seq, label: `ออเดอร์ #${s.order_id} · ${s.customer_name} · ${s.boxes} กล่อง` })),
     })),
   );
   unassignedIds = computed(() => (this.plan()?.unassigned ?? []).map(u => u.order_id).join(', #'));
 
   n = num;
   money = baht;
-  color = (i: number) => ROUTE_COLORS[i % ROUTE_COLORS.length];
-  colorName = (i: number) => ROUTE_COLOR_NAMES[i % ROUTE_COLOR_NAMES.length];
+  color = (r: { rider_id: number }) => routeColor(riderColorIndex(r.rider_id));
+  colorName = (r: { rider_id: number }) => routeColorName(riderColorIndex(r.rider_id));
   maxMinutes = (p: PlanResult) => Math.max(0, ...p.routes.map(r => num(r.estimated_minutes)));
 
   /** ให้เซิร์ฟเวอร์ลองหลายแบบแล้วเลือกแผนที่ดีที่สุดเพียงแผนเดียว */
@@ -205,7 +208,7 @@ export class Planner {
         this.saving.set(false);
         // เซิร์ฟเวอร์ไม่บันทึกเพราะมีไรเดอร์ที่คาดว่าถึงเกิน 12:30 -> ให้ผู้ใช้ตัดสินใจ
         if (e instanceof HttpErrorResponse && e.status === 409 && e.error?.code === 'LATE') {
-          if (confirm(`${e.error.error}\n\nต้องการบันทึกทั้งที่ส่งไม่ทันหรือไม่?\n(กดยกเลิกแล้วลองคำนวณใหม่เพื่อหาแผนที่ทันเวลา)`)) this.save(true);
+          if (confirm(`${e.error.error}\n\nต้องการบันทึกทั้งที่ส่งไม่ทันหรือไม่?\n(กดยกเลิกเพื่อกลับไปแก้ไขออเดอร์)`)) this.save(true);
           return;
         }
         this.toast.error(errorText(e));

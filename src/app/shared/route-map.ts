@@ -11,6 +11,8 @@ export interface MapStop {
 export interface MapRoute {
   name: string;
   stops: MapStop[];
+  /** ลำดับสี (เช่น rider_id) ถ้าไม่ใส่จะใช้ลำดับของเส้นในรายการ */
+  colorIndex?: number;
 }
 
 export interface MapPin {
@@ -25,9 +27,15 @@ export interface MapPoint {
   lng: number;
 }
 
-/** สีเส้นทางไรเดอร์: คนที่ 1 แดง, คนที่ 2 เขียว, คนที่ 3 น้ำเงิน ตามที่เจ้าของร้านกำหนด */
-export const ROUTE_COLORS = ['#dc2626', '#16a34a', '#2563eb', '#9333ea', '#ea580c', '#0d9488', '#ca8a04', '#db2777'];
-export const ROUTE_COLOR_NAMES = ['แดง', 'เขียว', 'น้ำเงิน', 'ม่วง', 'ส้ม', 'เขียวเทา', 'เหลืองเข้ม', 'ชมพู'];
+/** สีเส้นทางไรเดอร์: คนที่ 1 แดง, คนที่ 2 เขียว, คนที่ 3 น้ำเงิน ตามที่เจ้าของร้านกำหนด (สีที่เหลือเลือกให้แยกจากกันชัดเจน) */
+export const ROUTE_COLORS = ['#dc2626', '#16a34a', '#2563eb', '#9333ea', '#ea580c', '#db2777', '#92400e', '#475569'];
+export const ROUTE_COLOR_NAMES = ['แดง', 'เขียว', 'น้ำเงิน', 'ม่วง', 'ส้ม', 'ชมพู', 'น้ำตาล', 'เทาเข้ม'];
+
+/** สีของไรเดอร์คนที่ index (วนซ้ำเมื่อเกินจำนวนสี) */
+export const routeColor = (index: number) => ROUTE_COLORS[((index % ROUTE_COLORS.length) + ROUTE_COLORS.length) % ROUTE_COLORS.length];
+export const routeColorName = (index: number) => ROUTE_COLOR_NAMES[((index % ROUTE_COLORS.length) + ROUTE_COLORS.length) % ROUTE_COLORS.length];
+/** เลือกสีจาก rider_id เพื่อให้ไรเดอร์คนเดิมได้สีเดิมทุกหน้า (id เริ่มที่ 1 -> แดง) */
+export const riderColorIndex = (riderId: number) => Math.max(0, riderId - 1);
 
 interface RoadResult {
   coords: [number, number][];
@@ -134,8 +142,8 @@ export class RouteMap implements OnDestroy {
   protected legend = computed(() =>
     this.routes().map((r, i) => ({
       name: r.name,
-      color: ROUTE_COLORS[i % ROUTE_COLORS.length],
-      colorName: ROUTE_COLOR_NAMES[i % ROUTE_COLOR_NAMES.length],
+      color: routeColor(r.colorIndex ?? i),
+      colorName: routeColorName(r.colorIndex ?? i),
     })),
   );
 
@@ -224,7 +232,7 @@ export class RouteMap implements OnDestroy {
     const bounds: Leaflet.LatLngTuple[] = [];
 
     routes.forEach((r, i) => {
-      const color = ROUTE_COLORS[i % ROUTE_COLORS.length];
+      const color = routeColor(r.colorIndex ?? i);
       const pts: Leaflet.LatLngTuple[] = [
         ...(shop ? [[shop.lat, shop.lng] as Leaflet.LatLngTuple] : []),
         ...r.stops.map(s => [s.lat, s.lng] as Leaflet.LatLngTuple),
