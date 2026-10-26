@@ -43,8 +43,8 @@ import { StatusBadge } from '../../shared/status-badge';
       <div class="grid gap-4 lg:grid-cols-5">
         <div class="card p-4 lg:col-span-3">
           <h2 class="mb-3 font-semibold">แผนผังจุดส่ง</h2>
-          <app-route-map [routes]="mapRoutes()" />
-          <p class="mt-2 text-xs text-slate-500">เส้นเริ่มจากจุดส่งที่ 1 (ไม่แสดงตำแหน่งร้านในหน้านี้) · แตะหมุดเพื่อดูเลขออเดอร์</p>
+          <app-route-map [routes]="mapRoutes()" [showOrderNo]="true" />
+          <p class="mt-2 text-xs text-slate-500">เส้นเริ่มจากจุดส่งที่ 1 (ไม่แสดงตำแหน่งร้านในหน้านี้) · เลขบนหมุดคือลำดับส่ง · #เลขออเดอร์</p>
         </div>
         <div class="card lg:col-span-2">
           <ol class="divide-y divide-slate-100">
@@ -86,7 +86,7 @@ export class RouteDetailPage {
           {
             name: r.rider_name,
             colorIndex: riderColorIndex(r.rider_id),
-            stops: r.stops.map(s => ({ lat: num(s.lat), lng: num(s.lng), seq: s.seq, label: `ออเดอร์ #${s.order_id} · ${fullName(s)} · ${s.boxes} กล่อง` })),
+            stops: r.stops.map(s => ({ lat: num(s.lat), lng: num(s.lng), seq: s.seq, orderId: s.order_id, label: `ออเดอร์ #${s.order_id} · ${fullName(s)} · ${s.boxes} กล่อง` })),
           },
         ]
       : [];

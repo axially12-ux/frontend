@@ -6,6 +6,8 @@ export interface MapStop {
   lng: number;
   seq: number;
   label?: string;
+  /** เลขออเดอร์ (แสดงบนหมุดเมื่อเปิด [showOrderNo]) */
+  orderId?: number;
 }
 
 export interface MapRoute {
@@ -28,12 +30,23 @@ export interface MapPoint {
 }
 
 /** สีเส้นทางไรเดอร์: คนที่ 1 แดง, คนที่ 2 เขียว, คนที่ 3 น้ำเงิน ตามที่เจ้าของร้านกำหนด (สีที่เหลือเลือกให้แยกจากกันชัดเจน) */
-export const ROUTE_COLORS = ['#dc2626', '#16a34a', '#2563eb', '#9333ea', '#ea580c', '#db2777', '#92400e', '#475569'];
-export const ROUTE_COLOR_NAMES = ['แดง', 'เขียว', 'น้ำเงิน', 'ม่วง', 'ส้ม', 'ชมพู', 'น้ำตาล', 'เทาเข้ม'];
+export const ROUTE_COLORS = ['#dc2626', '#16a34a', '#2563eb', '#9333ea', '#ea580c', '#db2777', '#92400e', '#475569', '#0891b2', '#ca8a04', '#84cc16', '#4f46e5'];
+export const ROUTE_COLOR_NAMES = ['แดง', 'เขียว', 'น้ำเงิน', 'ม่วง', 'ส้ม', 'ชมพู', 'น้ำตาล', 'เทาเข้ม', 'ฟ้า', 'เหลืองทอง', 'เขียวมะนาว', 'คราม'];
 
-/** สีของไรเดอร์คนที่ index (วนซ้ำเมื่อเกินจำนวนสี) */
-export const routeColor = (index: number) => ROUTE_COLORS[((index % ROUTE_COLORS.length) + ROUTE_COLORS.length) % ROUTE_COLORS.length];
-export const routeColorName = (index: number) => ROUTE_COLOR_NAMES[((index % ROUTE_COLORS.length) + ROUTE_COLORS.length) % ROUTE_COLORS.length];
+/**
+ * สีของไรเดอร์คนที่ index: ใช้สีในชุดก่อน เมื่อไรเดอร์เกินจำนวนสีจะสร้างสีใหม่ให้ไม่ซ้ำ
+ * (หมุนเฉดสีทีละ 137.5° และสลับความสว่าง) จึงไม่มีไรเดอร์สองคนได้สีเดียวกัน
+ */
+export const routeColor = (index: number) => {
+  const i = Math.max(0, Math.floor(index));
+  if (i < ROUTE_COLORS.length) return ROUTE_COLORS[i];
+  const k = i - ROUTE_COLORS.length;
+  return `hsl(${Math.round((k * 137.5 + 20) % 360)} 70% ${k % 2 ? 62 : 38}%)`;
+};
+export const routeColorName = (index: number) => {
+  const i = Math.max(0, Math.floor(index));
+  return i < ROUTE_COLOR_NAMES.length ? ROUTE_COLOR_NAMES[i] : `สีที่ ${i + 1}`;
+};
 /** เลือกสีจาก rider_id เพื่อให้ไรเดอร์คนเดิมได้สีเดิมทุกหน้า (id เริ่มที่ 1 -> แดง) */
 export const riderColorIndex = (riderId: number) => Math.max(0, riderId - 1);
 
@@ -119,6 +132,8 @@ export class RouteMap implements OnDestroy {
   routes = input<MapRoute[]>([]);
   pins = input<MapPin[]>([]);
   height = input('28rem');
+  /** แสดงเลขออเดอร์ (#123) บนหมุดข้างเลขลำดับ */
+  showOrderNo = input(false);
   /** โหมดเลือกตำแหน่ง: คลิกแผนที่หรือลากหมุดเพื่อเลือกพิกัด */
   pickable = input(false);
   picked = input<MapPoint | null>(null);
@@ -233,6 +248,7 @@ export class RouteMap implements OnDestroy {
 
     routes.forEach((r, i) => {
       const color = routeColor(r.colorIndex ?? i);
+      const withNo = this.showOrderNo();
       const pts: Leaflet.LatLngTuple[] = [
         ...(shop ? [[shop.lat, shop.lng] as Leaflet.LatLngTuple] : []),
         ...r.stops.map(s => [s.lat, s.lng] as Leaflet.LatLngTuple),
@@ -244,9 +260,12 @@ export class RouteMap implements OnDestroy {
         L.marker([s.lat, s.lng], {
           icon: L.divIcon({
             className: '',
-            iconSize: [28, 28],
+            iconSize: withNo && s.orderId ? [0, 0] : [28, 28],
             iconAnchor: [14, 14],
-            html: `<div style="width:28px;height:28px;border-radius:9999px;background:${color};color:#fff;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);display:grid;place-items:center;font:700 13px 'Noto Sans Thai',sans-serif">${s.seq}</div>`,
+            html:
+              withNo && s.orderId
+                ? `<div style="display:flex;align-items:center;gap:4px;width:max-content;height:28px;padding:0 9px 0 0;border-radius:9999px;background:${color};color:#fff;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);font:700 12px 'Noto Sans Thai',sans-serif"><span style="width:22px;text-align:center;font-size:13px">${s.seq}</span><span>#${s.orderId}</span></div>`
+                : `<div style="width:28px;height:28px;border-radius:9999px;background:${color};color:#fff;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);display:grid;place-items:center;font:700 13px 'Noto Sans Thai',sans-serif">${s.seq}</div>`,
           }),
         })
           .bindPopup(`<b>${esc(r.name)}</b> · จุดที่ ${s.seq}${s.label ? `<br>${esc(s.label)}` : ''}`)
