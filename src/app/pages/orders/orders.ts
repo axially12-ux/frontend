@@ -38,7 +38,7 @@ type Filter = 'all' | OrderStatus;
             {{ t.label }} <span class="opacity-70">{{ counts()[t.key] }}</span>
           </button>
         }
-        <input class="field ml-auto !w-full sm:!w-64" [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="ค้นหาชื่อ / เบอร์ / เลขออเดอร์" aria-label="ค้นหาออเดอร์" />
+        <input class="field ml-auto !w-full sm:!w-64" [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="เลขออเดอร์ / ค้นหาชื่อ / เบอร์ / " aria-label="ค้นหาออเดอร์" />
       </div>
       <form class="flex flex-wrap gap-2" (ngSubmit)="nearby()">
         <input class="field !w-40" name="nlat" type="number" step="any" [(ngModel)]="nearLat" placeholder="ละติจูด" aria-label="ละติจูด" />
