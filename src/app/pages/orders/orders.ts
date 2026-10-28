@@ -107,7 +107,7 @@ type Filter = 'all' | OrderStatus;
       }
     </div>
 
-    <!-- เพิ่ม/แก้ไข -->
+
     <app-modal [open]="formOpen()" [title]="editing() ? 'แก้ไขออเดอร์ #' + editing()!.id : 'เพิ่มออเดอร์'" (closed)="formOpen.set(false)">
       <form class="space-y-3" (ngSubmit)="save()" #f="ngForm">
         @if (!editing()) {
@@ -155,7 +155,6 @@ type Filter = 'all' | OrderStatus;
       </form>
     </app-modal>
 
-    <!-- ล้างทั้งหมด -->
     <app-modal [open]="clearOpen()" title="ล้างออเดอร์ทั้งหมด?" (closed)="clearOpen.set(false)">
       <p class="text-sm text-slate-600">จะลบออเดอร์ทั้งหมด {{ orders().length }} รายการ ย้อนกลับไม่ได้ (ใช้สำหรับล้างข้อมูลทดสอบ)</p>
       <div class="mt-4 flex justify-end gap-2">
