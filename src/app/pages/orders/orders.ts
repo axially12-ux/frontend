@@ -21,7 +21,7 @@ type Filter = 'all' | OrderStatus;
       </div>
       <div class="flex flex-wrap gap-2">
         <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="simulate()">⚡ จำลอง 20–30 ออเดอร์</button>
-        <button type="button" class="btn btn-danger" [disabled]="busy() || !orders().length" (click)="clearOpen.set(true)">ล้างทั้งหมด</button>
+        <button type="button" class="btn btn-danger" [disabled]="busy() || !orders().length" (click)="clearOpen.set(true)">ล้างออเดอร์ทั้งหมด</button>
         <button type="button" class="btn btn-primary" (click)="openCreate()">+ เพิ่มออเดอร์</button>
       </div>
     </div>
