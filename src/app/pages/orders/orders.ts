@@ -70,7 +70,7 @@ type Filter = 'all' | OrderStatus;
             <thead>
               <tr>
                 <th class="th">#</th>
-                <th class="th">ลูกค้า</th>
+                <th class="th">ชื่อลูกค้า</th>
                 <th class="th">ที่อยู่</th>
                 <th class="th">กล่อง</th>
                 <th class="th">สถานะ</th>
