@@ -17,7 +17,7 @@ type Filter = 'all' | OrderStatus;
     <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-2xl font-bold">ออเดอร์</h1>
-        <p class="text-sm text-slate-500">{{ shown().length }} รายการ{{ nearbyMode() ? ' (ในรัศมี 2 กม.)' : '' }} · ไรเดอร์รับได้คนละไม่เกิน 3 ออเดอร์</p>
+        <p class="text-sm text-slate-500">{{ shown().length }} รายการ{{ nearbyMode() ? ' (ในรัศมี 3 กม.)' : '' }} · ไรเดอร์รับได้คนละไม่เกิน 3 ออเดอร์</p>
       </div>
       <div class="flex flex-wrap gap-2">
         <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="simulate()">⚡ จำลอง 20–30 ออเดอร์</button>
@@ -43,7 +43,7 @@ type Filter = 'all' | OrderStatus;
       <form class="flex flex-wrap gap-2" (ngSubmit)="nearby()">
         <input class="field !w-40" name="nlat" type="number" step="any" [(ngModel)]="nearLat" placeholder="ละติจูด" aria-label="ละติจูด" />
         <input class="field !w-40" name="nlng" type="number" step="any" [(ngModel)]="nearLng" placeholder="ลองจิจูด" aria-label="ลองจิจูด" />
-        <button class="btn btn-ghost" type="submit">ค้นออเดอร์ใกล้เคียง (2 กม.)</button>
+        <button class="btn btn-ghost" type="submit">ค้นออเดอร์ใกล้เคียง (3 กม.)</button>
         @if (nearbyMode()) {
           <button type="button" class="text-sm font-medium text-brand-600 hover:underline" (click)="clearNearby()">× ล้างตัวกรอง</button>
         }
