@@ -21,7 +21,7 @@ type Filter = 'all' | OrderStatus;
       </div>
       <div class="flex flex-wrap gap-2">
         <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="simulate()">⚡ จำลอง 20–30 ออเดอร์</button>
-        <button type="button" class="btn btn-danger" [disabled]="busy() || !orders().length" (click)="clearOpen.set(true)">ล้างทั้งหมด</button>
+        <button type="button" class="btn btn-danger" [disabled]="busy() || !orders().length" (click)="clearOpen.set(true)">ล้างออเดอร์ทั้งหมด</button>
         <button type="button" class="btn btn-primary" (click)="openCreate()">+ เพิ่มออเดอร์</button>
       </div>
     </div>
@@ -38,7 +38,7 @@ type Filter = 'all' | OrderStatus;
             {{ t.label }} <span class="opacity-70">{{ counts()[t.key] }}</span>
           </button>
         }
-        <input class="field ml-auto !w-full sm:!w-64" [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="ค้นหาชื่อ / เบอร์ / เลขออเดอร์" aria-label="ค้นหาออเดอร์" />
+        <input class="field ml-auto !w-full sm:!w-64" [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="เลขออเดอร์ / ค้นหาชื่อ / เบอร์  " aria-label="ค้นหาออเดอร์" />
       </div>
       <form class="flex flex-wrap gap-2" (ngSubmit)="nearby()">
         <input class="field !w-40" name="nlat" type="number" step="any" [(ngModel)]="nearLat" placeholder="ละติจูด" aria-label="ละติจูด" />
@@ -70,7 +70,7 @@ type Filter = 'all' | OrderStatus;
             <thead>
               <tr>
                 <th class="th">#</th>
-                <th class="th">ลูกค้า</th>
+                <th class="th">ชื่อลูกค้า</th>
                 <th class="th">ที่อยู่</th>
                 <th class="th">กล่อง</th>
                 <th class="th">สถานะ</th>
@@ -107,7 +107,7 @@ type Filter = 'all' | OrderStatus;
       }
     </div>
 
-    <!-- เพิ่ม/แก้ไข -->
+
     <app-modal [open]="formOpen()" [title]="editing() ? 'แก้ไขออเดอร์ #' + editing()!.id : 'เพิ่มออเดอร์'" (closed)="formOpen.set(false)">
       <form class="space-y-3" (ngSubmit)="save()" #f="ngForm">
         @if (!editing()) {
@@ -155,7 +155,6 @@ type Filter = 'all' | OrderStatus;
       </form>
     </app-modal>
 
-    <!-- ล้างทั้งหมด -->
     <app-modal [open]="clearOpen()" title="ล้างออเดอร์ทั้งหมด?" (closed)="clearOpen.set(false)">
       <p class="text-sm text-slate-600">จะลบออเดอร์ทั้งหมด {{ orders().length }} รายการ ย้อนกลับไม่ได้ (ใช้สำหรับล้างข้อมูลทดสอบ)</p>
       <div class="mt-4 flex justify-end gap-2">

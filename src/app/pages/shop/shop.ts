@@ -5,7 +5,6 @@ import { num } from '../../core/format';
 import { ToastService } from '../../core/toast.service';
 import { MapPoint, RouteMap } from '../../shared/route-map';
 
-/** ตั้งค่าร้าน: ชื่อและตำแหน่งร้าน (จุดเริ่มต้นของทุกเส้นทาง) เลือกบนแผนที่ได้เลย */
 @Component({
   selector: 'app-shop',
   imports: [FormsModule, RouteMap],
