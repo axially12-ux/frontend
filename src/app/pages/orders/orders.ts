@@ -43,7 +43,7 @@ type Filter = 'all' | OrderStatus;
       <form class="flex flex-wrap gap-2" (ngSubmit)="nearby()">
         <input class="field !w-40" name="nlat" type="number" step="any" [(ngModel)]="nearLat" placeholder="ละติจูด" aria-label="ละติจูด" />
         <input class="field !w-40" name="nlng" type="number" step="any" [(ngModel)]="nearLng" placeholder="ลองจิจูด" aria-label="ลองจิจูด" />
-        <button class="btn btn-ghost" type="submit">ค้นออเดอร์ใกล้เคียง (ภายในระยะ 2 กม.)</button>
+        <button class="btn btn-ghost" type="submit">ค้นออเดอร์ใกล้เคียง (ภายในระยะ 3 กม.)</button>
         @if (nearbyMode()) {
           <button type="button" class="text-sm font-medium text-brand-600 hover:underline" (click)="clearNearby()">× ล้างตัวกรอง</button>
         }
